@@ -2,8 +2,8 @@
 ## Griffin Shelor
 
 ## assigning values to r and K, creating time vector, creating N vector
-r <- 0.4
-K <- 250
+r <- 0.2
+K <- 500
 time_vector <- seq(1:100)
 N <- rep(0, 100)
 N[1] <- 3
@@ -23,6 +23,7 @@ logistic <- function(n, R, k) {
   return(new_n)
 }
 
+## for loop with function representing logistic growth equation
 for (i in 2:length(time_vector)) {
   N[i] <- logistic(n = N[i - 1], R = r, k = K)
 }
