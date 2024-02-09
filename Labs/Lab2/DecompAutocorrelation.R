@@ -1,0 +1,46 @@
+## Griffin Shelor
+## 30-1-2024
+## Lab 2- Time Series, Decomposition and Autocorrelation
+## loading packages
+library(pacman)
+pacman::p_load(tidyverse, here, tseries, astsa, forecast, stlplus, fpp)
+
+## reading in csv
+prism <- read_csv(here("UNR-EcoForecast-main", "data", "tucson_prism_monthly.csv"))
+
+#### Question 1 ####
+## converting to time series object
+tminC_ts <- ts(prism$tmin_C, frequency = 12)
+
+## decomposing time series object
+fit_add <- decompose(tminC_ts, type = "additive")
+plot(fit_add)
+
+fit_mult <- decompose(tminC_ts, type = "multiplicative")
+plot(fit_mult)
+
+## converting ts to monthly means
+monthly_tmin_means <- tapply(tminC_ts, cycle(tminC_ts), FUN=mean)
+plot(monthly_tmin_means,type="o")
+
+## converting tmax to time series object
+tmaxC_ts <- ts(prism$tmax_C, frequency = 12)
+
+## decomposing tmax time series object
+fit_tmax_add <- decompose(tmaxC_ts, type = "additive")
+plot(fit_tmax_add)
+
+fit_tmax_mult <- decompose(tmaxC_ts, type = "multiplicative")
+plot(fit_tmax_mult)
+
+
+#### Question 2 ####
+## creating lag plots
+lag.plot(tminC_ts, lags=12, do.lines=FALSE)
+lag.plot(tmaxC_ts, lags=12, do.lines=FALSE)
+
+#### Question 3 ####
+## plotting autocorrelation and partial autocorrelation
+acf(tminC_ts)
+pacf(tminC_ts)
+
