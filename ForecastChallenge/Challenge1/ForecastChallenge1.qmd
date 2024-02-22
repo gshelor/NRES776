@@ -1,0 +1,42 @@
+---
+title: "Forecasting Challenge #1"
+author: "Griffin Shelor"
+format: pdf
+---
+
+
+### Loading packages
+```{r}
+#| output: FALSE
+## Loading packages
+library(pacman)
+pacman::p_load(tidyverse, here, rstan, shinystan, bayesplot)
+## reading in data
+data_2013 <- read_csv(here("UNR-EcoForecast-main", "data", "Forecasting1", "2013_data.csv"))
+colnames(data_2013) <- c("Index", "Date", "SoilMoisture")
+WeatherData <- read_csv(here("UNR-EcoForecast-main", "data", "Forecasting1", "WeatherData_tidy.csv"))
+Weather_2013 <- WeatherData |>
+  filter(Year == 2013)|>
+  filter(YearDay < 277)
+SMwx2013_data <- merge(data_2013, Weather_2013, by = "Date")
+```
+
+
+```{r}
+## plotting data
+plot(SMwx2013_data$Air_TempC_Max, SMwx2013_data$SoilMoisture)
+plot(SMwx2013_data$Air_TempC_Min, SMwx2013_data$SoilMoisture)
+plot(SMwx2013_data$Air_TempC_Avg, SMwx2013_data$SoilMoisture)
+plot(SMwx2013_data$Solar_Incoming_Total, SMwx2013_data$SoilMoisture)
+plot(SMwx2013_data$Ppt_mm_Tot, SMwx2013_data$SoilMoisture)
+plot(SMwx2013_data$Relative_Humidity_Max, SMwx2013_data$SoilMoisture)
+plot(SMwx2013_data$Relative_Humidity_Min, SMwx2013_data$SoilMoisture)
+plot(SMwx2013_data$Wind_speed_Max, SMwx2013_data$SoilMoisture)
+plot(SMwx2013_data$SoilTemp_5cm_Avg, SMwx2013_data$SoilMoisture)
+plot(SMwx2013_data$SoilTemp_20cm_Avg, SMwx2013_data$SoilMoisture)
+plot(SMwx2013_data$SoilTemp_5cm_Max, SMwx2013_data$SoilMoisture)
+plot(SMwx2013_data$SoilTemp_5cm_Min, SMwx2013_data$SoilMoisture)
+plot(SMwx2013_data$SoilTemp_20cm_Max, SMwx2013_data$SoilMoisture)
+plot(SMwx2013_data$SoilTemp_20cm_Min, SMwx2013_data$SoilMoisture)
+```
+

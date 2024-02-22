@@ -40,7 +40,7 @@ model {
   b1~normal(0,10);
   sigma~normal(0,10)T[0,];
     
-  }
+}
   
   
 

@@ -25,7 +25,6 @@ portal <- read.csv(here("UNR-EcoForecast-main", "data", "portal_timeseries.csv")
 ## Question 1
 
 ```{r}
-#| output: FALSE
 ## setting number of rows and subsetting data to use for prediction later
 rows <- nrow(portal)
 observed <- portal[1:(rows - 10),]
@@ -33,22 +32,27 @@ observed_rows <- nrow(observed)
 
 ## fitting linear model
 set.seed(802)
-model <- glm(NDVI[-1] ~ NDVI[-(observed_rows)], data = observed)
+model <- lm(NDVI[-1] ~ NDVI[-(observed_rows)], data = observed)
 model
 summary(model)
 plot(model)
 ```
 ## Question 2
 ```{r}
-#| output: FALSE
 ## creating function to manually predict future NDVI
+NDVI_predictions <- 0
 forecast_func <- function(B0, B1, data, t) {
-  NDVI_predictions <- B0 + B1 * data[t-1,2]
-  return(NDVI_predictions)
+  if (NDVI_predictions == 0){
+    NDVI_predictions <- B0 + B1 * data[t-1,2]
+    return(NDVI_predictions)
+  } else {
+    NDVI_predictions <- B0 + B1 * NDVI_predictions[t-1]
+    return(NDVI_predictions)
+  }
 }
 NDVI_ten <- NULL
 ## calling forecast_func to predict next 10 months NDVI values
-for (i in 263:273) {
+for (i in 264:273) {
   ndvi_pred <- forecast_func(model$coefficients[1], model$coefficients[2], portal,  i)
   NDVI_ten <- rbind(NDVI_ten, ndvi_pred)
 }
@@ -58,23 +62,28 @@ NDVI_ten
 ```
 ## Question 3
 ```{r}
-#| output: FALSE
 ## repeating questions 1 and 2 but with rain as a covariate
 ## fitting linear model
 set.seed(802)
-model_rain <- glm(NDVI[-1] ~ NDVI[-(observed_rows)] + rain[-(observed_rows)], data = observed)
+model_rain <- lm(NDVI[-1] ~ NDVI[-(observed_rows)] + rain[-(observed_rows)], data = observed)
 model_rain
 summary(model_rain)
 plot(model_rain)
 
 ## creating function to manually predict future NDVI but this time including rain
+NDVI_predictions_rain <- 0
 forecast_func_rain <- function(B0, B1, B2, data, t) {
-  NDVI_predictions_rain <- B0 + (B1 * data[t-1,2]) + (B2 * data[t-1,3])
-  return(NDVI_predictions_rain)
+  if (NDVI_predictions_rain == 0){
+    NDVI_predictions_rain <- B0 + (B1 * data[t-1,2]) + (B2 * data[t-1,3])
+    return(NDVI_predictions_rain)
+  } else {
+    NDVI_predictions_rain <- B0 + (B1 * NDVI_predictions_rain[t-1]) + (B2 * data[t-1,3])
+    return(NDVI_predictions_rain)
+  }
 }
 NDVI_ten_rain <- NULL
 ## calling forecast_func to predict next 10 months NDVI values
-for (i in 263:273) {
+for (i in 264:273) {
   ndvi_pred_rain <- forecast_func_rain(model_rain$coefficients[1], model_rain$coefficients[2], model_rain$coefficients[3], portal,  i)
   NDVI_ten_rain <- rbind(NDVI_ten_rain, ndvi_pred_rain)
 }
@@ -86,7 +95,7 @@ NDVI_ten_rain <- c(NDVI_ten_rain)
 # RMSE function/Lab 4
 ```{r}
 ## plotting forecasts
-plot(1:11, portal$NDVI[263:273], type = "l",col = "black", ylim = c(0,0.5), xlab = "months", ylab = "NDVI", main = "Predicted vs Observed over time")
+plot(1:10, portal$NDVI[264:273], type = "l",col = "black", ylim = c(0,0.5), xlab = "months", ylab = "NDVI", main = "Predicted vs Observed over time")
 points(NDVI_ten, col = 'red')
 points(NDVI_ten_rain, col = 'blue')
 legend("topleft", legend = c("Data (line)", "Model with just NDVI (red)", "Model with rain (blue)"), col = 1:3)
@@ -95,8 +104,8 @@ legend("topleft", legend = c("Data (line)", "Model with just NDVI (red)", "Model
 # plot(1:11, NDVI_ten_rain, type = "l", ylim = c(0,0.5))
 # points(portal$NDVI[263:273], col = 'red')
 
-plot(NDVI_ten, portal$NDVI[263:273], main = "NDVI Model vs Observed")
-plot(NDVI_ten_rain, portal$NDVI[263:273], main = "NDVI + Rain Model vs Observed")
+plot(NDVI_ten, portal$NDVI[264:273], main = "NDVI Model vs Observed")
+plot(NDVI_ten_rain, portal$NDVI[264:273], main = "NDVI + Rain Model vs Observed")
 ## creating RMSE function
 RMSE_func <- function(ypred, yobs) {
   SS <- sum((ypred - yobs)^2)
@@ -109,12 +118,12 @@ obs <- portal$NDVI[(nrow(portal)-10):nrow(portal)]
 NDVI_ten <- c(NDVI_ten)
 ## creating empty RMSE_vals vector
 RMSE_vals <- NULL
-for (i in 1:11) {
+for (i in 1:10) {
   RMSE_vals <- append(RMSE_vals, RMSE_func(NDVI_ten[1:i], obs[1:i]))
 }
 RMSE_vals
 
-plot(1:11, RMSE_vals, xlab = "months", ylab = "Cumulative RMSE", main = "Cumulative RMSE")
+plot(1:10, RMSE_vals, xlab = "months", ylab = "Cumulative RMSE", main = "Cumulative RMSE")
 ```
 Based on my plot of RMSE, the forecasts diverge at approximately month 8. This also fits with my plot of both models compared to the observed data, where the widest gap between predicted NDVI and observed NDVI occurs. This could be because the NDVI that month was an outlier, or maybe there was an outlier in one of the predictor variables such as rain which could not properly account for the variation in NDVI present around this time. It is also possible that my model could be overfitted to the dataset used to "train" it and thus is not as suitable as I would like for test datasets.
 

@@ -1,16 +1,17 @@
 library(rstan)
 library(shinystan)
+library(here)
+library(tidyverse)
+#setwd(dirname(rstudioapi::getActiveDocumentContext()$path))##set working directory to current file 
 
-setwd(dirname(rstudioapi::getActiveDocumentContext()$path))##set working directory to current file 
 
-
-data = read.csv('./../data/portal_timeseries.csv')
+data <- read.csv(here("UNR-EcoForecast-main", "data", "portal_timeseries.csv"))
 
 n<-length(data$NDVI)
 
 #remove last 10
 
-datafit<-data[1:(n-10),] ##This is our "observed data
+datafit <- data[1:(n-10),] ##This is our "observed data
 
 
 
@@ -23,7 +24,7 @@ modeldata<-list(N=dim(datafit)[1], y=datafit$NDVI,rain=datafit$rain)
 ###The end result is a vector of parameters that make up the posterior distrbution.
 ###This code runs the stan model. It will first compile the code and then run through all of the chains sequentially
 ###There are a number of parameters you can adjust, chain lengths, number of chains. 
-fit1<-stan(file='StanExample_Portal.stan',data=modeldata, chains=3,iter=2000, warmup=1000)
+fit1<-stan(file=here("UNR-EcoForecast-main", "lectures", "StanExample_Portal.stan"),data=modeldata, chains=3,iter=2000, warmup=1000)
 fit1
 
 ###The extract function can used to extract the parameter value draw from the chains. 
@@ -46,15 +47,14 @@ hist(pars$sigma)
 
 PredData<-data[(n-10):n,]
 PredOut<-matrix(NA,length(pars$b0),10)
+PredOut_mean <- matrix(NA, length(pars$b0),10)
 
 for (p in 1:length(pars$b0)){
   NDVI<-PredData$NDVI[1]
   for(t in 1:10){
-     NDVI<- rnorm(1,mean=pars$b0[p]+1*NDVI+pars$b2[p]*PredData$rain[t],sd=pars$sigma[p])
-  PredOut[p,t]<-NDVI
+    NDVI<- rnorm(1,mean=pars$b0[p]+1*NDVI+pars$b2[p]*PredData$rain[t],sd=pars$sigma[p])
+    PredOut[p,t]<-NDVI
   }
-  
-  
 }
 
 #hist(PredOut[,1])
@@ -66,7 +66,7 @@ Upper<-apply(PredOut,2,quantile, prob=.975)
 Lower<-apply(PredOut,2,quantile, prob=.025)
   
   
-plot(MeanP,type='l', ylim=c(0,.4)) 
+plot(MeanP,type='l', ylim = c(0,1.5)) 
 lines(Upper,lty=2)
 lines(Lower,lty=2)  
 points(PredData$NDVI,col='steelblue')
@@ -99,4 +99,19 @@ plot(MeanP,type='l', ylim=c(0,.4))
 lines(Upper,lty=2)
 lines(Lower,lty=2)  
 points(PredData$NDVI,col='steelblue')
+
+
+## adding in process uncertainty
+PredOut <- matrix(NA, length(pars$b0), 10)
+PredOut_mean <- matrix(NA, length(pars$b0), 10)
+
+for (p in 1:length(pars$b0)){
+  NDVI <- PredData$NDVI[1]
+  for (t in 1:10){
+    mean_NDVI <- pars$b0[p] + pars$b1[p] * NDVI + pars$b2[p] * PredData$rain[t]
+    NDVI <- rnorm(1, mean_NDVI, pars$sigma[p])
+    PredOut[p,t] <- NDVI
+    PredOut_mean[p,t] <- mean_NDVI
+  }
+}
 
