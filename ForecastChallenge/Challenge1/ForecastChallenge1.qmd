@@ -10,15 +10,16 @@ format: pdf
 #| output: FALSE
 ## Loading packages
 library(pacman)
-pacman::p_load(tidyverse, here, rstan, shinystan, bayesplot)
+pacman::p_load(tidyverse, here, rstan, shinystan, bayesplot, randomForest, caret, ranger, tseries, astsa, forecast, stlplus, fpp)
 ## reading in data
-data_2013 <- read_csv(here("UNR-EcoForecast-main", "data", "Forecasting1", "2013_data.csv"))
-colnames(data_2013) <- c("Index", "Date", "SoilMoisture")
+sm_2013 <- read_csv(here("UNR-EcoForecast-main", "data", "Forecasting1", "2013_data.csv"))
+colnames(sm_2013) <- c("Index", "Date", "SoilMoisture")
 WeatherData <- read_csv(here("UNR-EcoForecast-main", "data", "Forecasting1", "WeatherData_tidy.csv"))
 Weather_2013 <- WeatherData |>
   filter(Year == 2013)|>
   filter(YearDay < 277)
-SMwx2013_data <- merge(data_2013, Weather_2013, by = "Date")
+SMwx2013_data <- merge(sm_2013, Weather_2013, by = "Date")
+SMwx2013_data$Date <- as_date(SMwx2013_data$Date, format = "%m/%d/%y")
 ```
 
 
@@ -38,5 +39,101 @@ plot(SMwx2013_data$SoilTemp_5cm_Max, SMwx2013_data$SoilMoisture)
 plot(SMwx2013_data$SoilTemp_5cm_Min, SMwx2013_data$SoilMoisture)
 plot(SMwx2013_data$SoilTemp_20cm_Max, SMwx2013_data$SoilMoisture)
 plot(SMwx2013_data$SoilTemp_20cm_Min, SMwx2013_data$SoilMoisture)
+plot(SMwx2013_data$YearDay, SMwx2013_data$SoilMoisture)
+plot(SMwx2013_data$YearDay, SMwx2013_data$SoilMoisture, type = 'l')
 ```
+
+```{r}
+## looking at time series of moisture
+## converting to time series object
+sm_ts <- ts(SMwx2013_data$SoilMoisture, frequency = 7)
+
+## decomposing time series object
+fit_add <- decompose(sm_ts, type = "additive")
+plot(fit_add)
+
+fit_mult <- decompose(sm_ts, type = "multiplicative")
+plot(fit_mult)
+
+weekly_sm_means <- tapply(sm_ts, cycle(sm_ts), FUN=mean)
+plot(weekly_sm_means,type="o")
+
+## time series of precip
+precip_ts <- ts(SMwx2013_data$Ppt_mm_Tot, frequency = 7)
+
+## decomposing time series object
+fit_precip_add <- decompose(precip_ts, type = "additive")
+plot(fit_add)
+
+fit_precip_mult <- decompose(precip_ts, type = "multiplicative")
+plot(fit_mult)
+
+weekly_precip_means <- tapply(precip_ts, cycle(precip_ts), FUN=mean)
+plot(weekly_precip_means,type="o")
+
+## creating lag plots
+lag.plot(sm_ts, lags=15, do.lines=FALSE)
+lag.plot(sm_ts, lags=15, do.lines=FALSE)
+
+## looking at autocorrelation
+acf(sm_ts)
+pacf(sm_ts)
+acf(precip_ts)
+pacf(precip_ts)
+```
+## splitting data up into training data and testing data
+```{r}
+data_2013_train <- SMwx2013_data |>
+  filter(YearDay < 247)
+data_2013_test <- SMwx2013_data |>
+  filter(YearDay >= 247)
+```
+
+
+## fuck it, I'm trying a ranger (random forest) model
+```{r}
+## using ranger package
+set.seed(802)
+ranger_mod <- ranger(formula = SoilMoisture ~ Ppt_mm_Tot + Air_TempC_Avg + Air_TempC_Max + Relative_Humidity_Max + SoilTemp_5cm_Max + SoilTemp_20cm_Max + Solar_Incoming_Total + Relative_Humidity_Min, data = data_2013_train, num.trees = 10000, mtry = 3, importance = "impurity", quantreg = TRUE)
+set.seed(802)
+ranger_mod_v2 <- ranger(formula = SoilMoisture ~ Air_TempC_Avg + SoilTemp_5cm_Max + SoilTemp_20cm_Max, data = data_2013_train, num.trees = 10000, mtry = 3, importance = "impurity")
+## using random forest package
+set.seed(802)
+RF_mod <- randomForest(formula = SoilMoisture ~ Ppt_mm_Tot + Air_TempC_Avg + Air_TempC_Max + Relative_Humidity_Max + SoilTemp_5cm_Max + SoilTemp_20cm_Max + Solar_Incoming_Total + Relative_Humidity_Min, data = data_2013_train, num.trees = 10000, mtry = 2)
+set.seed(802)
+RF_mod_v2 <- randomForest(formula = SoilMoisture ~ Air_TempC_Avg + SoilTemp_5cm_Max + SoilTemp_20cm_Max, data = data_2013_train, num.trees = 1000, mtry = 2)
+
+## printing and plotting models
+print(ranger_mod)
+# importance(ranger_mod)
+importance(ranger_mod_v2)
+print(RF_mod)
+print(RF_mod_v2)
+plot(RF_mod)
+plot(RF_mod_v2)
+varImpPlot(RF_mod)
+varImpPlot(RF_mod_v2)
+
+## creating predictions
+## quantiles for ranger predictions
+quants <- c(0.2, 0.5, 0.8)
+set.seed(802)
+ranger_pred <- predict(ranger_mod, data = data_2013_test, type = "quantiles", quantiles = quants)
+set.seed(802)
+ranger_pred_v2 <- predict(ranger_mod_v2, data = data_2013_test)
+set.seed(802)
+RF_pred <- predict(RF_mod, newdata = data_2013_test)
+set.seed(802)
+RF_pred_v2 <- predict(RF_mod_v2, newdata = data_2013_test)
+rangerpredictions <- predictions(ranger_pred)
+rangerpredictions_v2 <- predictions(ranger_pred_v2)
+plot(1:30, data_2013_test$SoilMoisture, col = 'blue')
+points(rangerpredictions[,2], col = 'red')
+lines(rangerpredictions[,1], col = 'red')
+lines(rangerpredictions[,3], col = 'red')
+# points(RF_pred, pch = 14, col = 'green')
+points(RF_pred_v2, col = 'black')
+
+```
+
 
