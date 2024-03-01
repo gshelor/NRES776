@@ -33,12 +33,12 @@ model {
   y ~ normal(b0 + b1*x1 + b2*x2, sigma);
 }
 
-generated quantities {
- real y_rep[N];
-
- for (n in 1:N) {
- y_rep[n] = normal_rng(x1[n] * b1 + x2[n] * b2 + b0, sigma);
- }
-
-}
+// generated quantities {
+//  real y_rep[N];
+// 
+//  for (n in 1:N) {
+//  y_rep[n] = normal_rng(x1[n] * b1 + x2[n] * b2 + b0, sigma);
+//  }
+// 
+// }
 
