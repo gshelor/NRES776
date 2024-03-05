@@ -81,7 +81,10 @@ set.seed(802)
 ranger_mod <- ranger(formula = SoilMoisture ~ Air_TempC_Max + Air_TempC_Min + Air_TempC_Avg + Solar_Incoming_Total + Ppt_mm_Tot + Relative_Humidity_Max + Relative_Humidity_Min + Wind_speed_Max + WndSpeed_Avg + WinDir_Avg + WinDir_Std_Dev + SoilTemp_5cm_Avg + SoilTemp_20cm_Avg + Dewpoint_Avg + SoilTemp_5cm_Max + SoilTemp_5cm_Min + SoilTemp_20cm_Max + SoilTemp_20cm_Min, data = data_2013_train, num.trees = 10000, mtry = 3, importance = "impurity", quantreg = TRUE)
 set.seed(802)
 ranger_mod_v2 <- ranger(formula = SoilMoisture ~ SoilTemp_20cm_Avg + SoilTemp_20cm_Min + SoilTemp_5cm_Max + SoilTemp_20cm_Max + Air_TempC_Avg + Dewpoint_Avg, data = data_2013_train, num.trees = 10000, mtry = 3, importance = "impurity", quantreg = TRUE)
+set.seed(802)
 ranger_mod_v3 <- ranger(formula = SoilMoisture ~ SoilTemp_20cm_Avg + SoilTemp_20cm_Min + SoilTemp_5cm_Max + SoilTemp_20cm_Max + Air_TempC_Avg, data = data_2013_train, num.trees = 10000, mtry = 3, importance = "impurity", quantreg = TRUE)
+set.seed(802)
+ranger_mod_v4 <- ranger(formula = SoilMoisture ~ SoilTemp_20cm_Avg + SoilTemp_20cm_Min + SoilTemp_5cm_Max + SoilTemp_20cm_Max, data = data_2013_train, num.trees = 10000, mtry = 3, importance = "impurity", quantreg = TRUE)
 ## using random forest package
 # set.seed(802)
 # RF_mod <- randomForest(formula = SoilMoisture ~ Ppt_mm_Tot + Air_TempC_Avg + Air_TempC_Max + Relative_Humidity_Max + SoilTemp_5cm_Max + SoilTemp_20cm_Max + Solar_Incoming_Total + Relative_Humidity_Min, data = data_2013_train, num.trees = 10000, mtry = 2)
@@ -107,11 +110,17 @@ ranger_pred <- predict(ranger_mod, data = data_2013_test, type = "quantiles", qu
 set.seed(802)
 ranger_pred_v2 <- predict(ranger_mod_v2, data = data_2013_test, type = "quantiles", quantiles = quants)
 set.seed(802)
-RF_pred <- predict(RF_mod, newdata = data_2013_test)
+ranger_pred_v3 <- predict(ranger_mod_v3, data = data_2013_test, type = "quantiles", quantiles = quants)
 set.seed(802)
-RF_pred_v2 <- predict(RF_mod_v2, newdata = data_2013_test)
+ranger_pred_v4 <- predict(ranger_mod_v4, data = data_2013_test, type = "quantiles", quantiles = quants)
+set.seed(802)
+# RF_pred <- predict(RF_mod, newdata = data_2013_test)
+set.seed(802)
+# RF_pred_v2 <- predict(RF_mod_v2, newdata = data_2013_test)
 rangerpredictions <- predictions(ranger_pred)
 rangerpredictions_v2 <- predictions(ranger_pred_v2)
+rangerpredictions_v3 <- predictions(ranger_pred_v3)
+rangerpredictions_v4 <- predictions(ranger_pred_v4)
 plot(1:30, data_2013_test$SoilMoisture, col = 'black', ylim = c(0.1,0.35))
 points(rangerpredictions[,2], col = 'red')
 lines(rangerpredictions[,1], col = 'red')
@@ -119,9 +128,30 @@ lines(rangerpredictions[,3], col = 'red')
 points(rangerpredictions_v2[,2], pch = 2, col = 'darkgreen')
 lines(rangerpredictions_v2[,1], col = 'darkgreen')
 lines(rangerpredictions_v2[,3], col = 'darkgreen')
+points(rangerpredictions_v3[,2], pch = 2, col = 'darkblue')
+lines(rangerpredictions_v3[,1], col = 'darkblue')
+lines(rangerpredictions_v3[,3], col = 'darkblue')
+points(rangerpredictions_v4[,2], pch = 2, col = 'orange')
+lines(rangerpredictions_v4[,1], col = 'orange')
+lines(rangerpredictions_v4[,3], col = 'orange')
 # points(RF_pred, pch = 14, col = 'green')
 # points(RF_pred_v2, col = 'black')
 
 ```
+## Stan model 1
+```{r}
+## making list of data to declare what goes into stan model
+train_rows <- nrow(data_2013_train)
+model1_datalist <- list(N = nrow(data_2013_train) -1, y = data_2013_train$SoilMoisture[-1], x1 = data_2013_train$SoilMoisture[-train_rows], x2 = data_2013_train$Air_TempC_Max[-train_rows], x3 = data_2013_train$Air_TempC_Min[-train_rows], x4 = data_2013_train$Air_TempC_Avg[-train_rows], x5 = data_2013_train$Solar_Incoming_Total[-train_rows], x6 = data_2013_train$Ppt_mm_Tot[-train_rows], x7 = data_2013_train$Relative_Humidity_Max[-train_rows], x8 = data_2013_train$Relative_Humidity_Min[-train_rows], x9 = data_2013_train$Wind_speed_Max[-train_rows], x10 = data_2013_train$WndSpeed_Avg[-train_rows], x11 = data_2013_train$WinDir_Avg[-train_rows], x12 = data_2013_train$WinDir_Std_Dev[-train_rows], x13 = data_2013_train$SoilTemp_5cm_Avg[-train_rows], x14 = data_2013_train$SoilTemp_20cm_Avg[-train_rows], x15 = data_2013_train$Dewpoint_Avg[-train_rows], x16 = data_2013_train$SoilTemp_5cm_Max[-train_rows], x17 = data_2013_train$SoilTemp_5cm_Min[-train_rows], x18 = data_2013_train$SoilTemp_20cm_Max[-train_rows], x19 = data_2013_train$SoilTemp_20cm_Min[-train_rows])
 
+## fitting stan model
+set.seed(802)
+model1_fit <- stan(file=here("ForecastChallenge", "Challenge1", "FC1Model1.stan"),data = model1_datalist, chains = 4, iter = 10000, warmup = 2000)
+model1_fit
+```
+
+```{r}
+## launching shinystan
+launch_shinystan(model1_fit)
+```
 
