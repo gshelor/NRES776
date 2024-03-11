@@ -42,11 +42,11 @@ pars_vector <- rstan::extract(fit_vector, c('b0','b1','b2','sigma'))
 
 ## fitting stan model but with a for loop as the model instead of a vector
 set.seed(802)
-fit_forloop <- stan(file=here("Labs", "Lab5", "Lab567NDVI_ForLoop.stan"),data=ndvi_datalist, chains=3,iter=2000, warmup=1000)
-fit_forloop
+# fit_forloop <- stan(file=here("Labs", "Lab5", "Lab567NDVI_ForLoop.stan"),data=ndvi_datalist, chains=3,iter=2000, warmup=1000)
+# fit_forloop
 
 ## extracting parameters from fit_forloop
-pars_forloop <- rstan::extract(fit_forloop, c('b0','b1','b2','sigma'))
+# pars_forloop <- rstan::extract(fit_forloop, c('b0','b1','b2','sigma'))
 ```
 
 ## Question 2
@@ -60,10 +60,10 @@ hist(pars_vector$sigma, main = "sigma")
 
 ## plots of the posterior for the for loop model
 par(mfrow=c(2,2))
-hist(pars_forloop$b0, main = "b0")
-hist(pars_forloop$b1, main = "b1")
-hist(pars_forloop$b2, main = "b2")
-hist(pars_forloop$sigma, main = "sigma")
+# hist(pars_forloop$b0, main = "b0")
+# hist(pars_forloop$b1, main = "b1")
+# hist(pars_forloop$b2, main = "b2")
+# hist(pars_forloop$sigma, main = "sigma")
 ```
 
 ## Question 3
@@ -77,10 +77,10 @@ mean(pars_vector$b2)
 mean(pars_vector$sigma)
 
 ## means for extracted parameters from for loop model
-mean(pars_forloop$b0)
-mean(pars_forloop$b1)
-mean(pars_forloop$b2)
-mean(pars_forloop$sigma)
+# mean(pars_forloop$b0)
+# mean(pars_forloop$b1)
+# mean(pars_forloop$b2)
+# mean(pars_forloop$sigma)
 ```
 
 ```{r}
@@ -105,22 +105,22 @@ for (p in 1:length(pars_vector$b0)){
 }
 
 par(mfrow = c(1,1))
-matplot(t(y_out), type = 'l')
+# matplot(t(y_out), type = 'l')
 
 mean_dist <- apply(y_out, 2,mean)
 # mean_dist
-lines(mean_dist)
+# lines(mean_dist)
 # plot(mean_dist, col = 'blue')
 
 UL_dist <- apply(y_out, 2,quantile, prob = 0.975)
-lines(UL_dist, lwd = 2)
+# lines(UL_dist, lwd = 2)
 
 LL_dist <- apply(y_out, 2,quantile, prob = 0.025)
-lines(LL_dist, lwd = 2)
+# lines(LL_dist, lwd = 2)
 
 
 ## extracting generated quantities from posterior
-y_rep <- as.matrix(fit_vector, pars = "y_rep")
+# y_rep <- as.matrix(fit_vector, pars = "y_rep")
 # dim(y_rep)
 
 ## 
@@ -212,7 +212,7 @@ There is 1 point which falls outside of the full predictive interval. Given that
 
 ## Question 2
 ```{r}
-## adding in process uncertainty
+## creating prediction matrices
 Pred_out <- matrix(NA, length(pars_vector$b0), 10)
 Pred_out_mean <- matrix(NA, length(pars_vector$b0), 10)
 

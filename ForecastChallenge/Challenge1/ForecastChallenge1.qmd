@@ -10,36 +10,44 @@ format: pdf
 #| output: FALSE
 ## Loading packages
 library(pacman)
-pacman::p_load(tidyverse, here, rstan, shinystan, bayesplot, randomForest, caret, ranger, tseries, astsa, forecast, stlplus, fpp)
+pacman::p_load(tidyverse, here, rstan, shinystan, bayesplot, randomForest, caret, ranger, tseries, astsa, forecast, stlplus, fpp, ModelMetrics)
 ## reading in data
 sm_2013 <- read_csv(here("UNR-EcoForecast-main", "data", "Forecasting1", "2013_data.csv"))
 colnames(sm_2013) <- c("Index", "Date", "SoilMoisture")
+## formatting date
+sm_2013$Date <- mdy(sm_2013$Date)
+## reading in weather data
 WeatherData <- read_csv(here("UNR-EcoForecast-main", "data", "Forecasting1", "WeatherData_tidy.csv"))
+## Formatting weather date
+WeatherData$Date <- mdy(WeatherData$Date)
+## filtering to only include weather data for 2013 dates where we already have soil moisture data
 Weather_2013 <- WeatherData |>
   filter(Year == 2013)|>
   filter(YearDay < 277)
+## merging 2013 SM and weather data to use for building/training forecasting model
 SMwx2013_data <- merge(sm_2013, Weather_2013, by = "Date")
-SMwx2013_data$Date <- as_date(SMwx2013_data$Date, format = "%m/%d/%y")
+# SMwx2013_data$Date <- as_date(SMwx2013_data$Date, format = "%m/%d/%y")
 ```
 
 
 ```{r}
 ## plotting data
-plot(SMwx2013_data$Air_TempC_Max, SMwx2013_data$SoilMoisture)
-plot(SMwx2013_data$Air_TempC_Min, SMwx2013_data$SoilMoisture)
-plot(SMwx2013_data$Air_TempC_Avg, SMwx2013_data$SoilMoisture)
-plot(SMwx2013_data$Solar_Incoming_Total, SMwx2013_data$SoilMoisture)
-plot(SMwx2013_data$Ppt_mm_Tot, SMwx2013_data$SoilMoisture)
-plot(SMwx2013_data$Relative_Humidity_Max, SMwx2013_data$SoilMoisture)
-plot(SMwx2013_data$Relative_Humidity_Min, SMwx2013_data$SoilMoisture)
-plot(SMwx2013_data$Wind_speed_Max, SMwx2013_data$SoilMoisture)
-plot(SMwx2013_data$SoilTemp_5cm_Avg, SMwx2013_data$SoilMoisture)
-plot(SMwx2013_data$SoilTemp_20cm_Avg, SMwx2013_data$SoilMoisture)
-plot(SMwx2013_data$SoilTemp_5cm_Max, SMwx2013_data$SoilMoisture)
-plot(SMwx2013_data$SoilTemp_5cm_Min, SMwx2013_data$SoilMoisture)
-plot(SMwx2013_data$SoilTemp_20cm_Max, SMwx2013_data$SoilMoisture)
-plot(SMwx2013_data$SoilTemp_20cm_Min, SMwx2013_data$SoilMoisture)
-plot(SMwx2013_data$YearDay, SMwx2013_data$SoilMoisture)
+# plot(SMwx2013_data$Air_TempC_Max, SMwx2013_data$SoilMoisture)
+# plot(SMwx2013_data$Air_TempC_Min, SMwx2013_data$SoilMoisture)
+# plot(SMwx2013_data$Air_TempC_Avg, SMwx2013_data$SoilMoisture)
+# plot(SMwx2013_data$Solar_Incoming_Total, SMwx2013_data$SoilMoisture)
+# plot(SMwx2013_data$Ppt_mm_Tot, SMwx2013_data$SoilMoisture)
+# plot(SMwx2013_data$Relative_Humidity_Max, SMwx2013_data$SoilMoisture)
+# plot(SMwx2013_data$Relative_Humidity_Min, SMwx2013_data$SoilMoisture)
+# plot(SMwx2013_data$Wind_speed_Max, SMwx2013_data$SoilMoisture)
+# plot(SMwx2013_data$SoilTemp_5cm_Avg, SMwx2013_data$SoilMoisture)
+# plot(SMwx2013_data$SoilTemp_20cm_Avg, SMwx2013_data$SoilMoisture)
+# plot(SMwx2013_data$SoilTemp_5cm_Max, SMwx2013_data$SoilMoisture)
+# plot(SMwx2013_data$SoilTemp_5cm_Min, SMwx2013_data$SoilMoisture)
+# plot(SMwx2013_data$SoilTemp_20cm_Max, SMwx2013_data$SoilMoisture)
+# plot(SMwx2013_data$SoilTemp_20cm_Min, SMwx2013_data$SoilMoisture)
+# plot(SMwx2013_data$Date, SMwx2013_data$SoilMoisture, type = 'l')
+# plot(SMwx2013_data$YearDay, SMwx2013_data$SoilMoisture)
 ```
 
 ```{r}
@@ -74,17 +82,19 @@ data_2013_test <- SMwx2013_data |>
 ```
 
 
-## fuck it, I'm trying a ranger (random forest) model
+## trying a random forest model
 ```{r}
 ## using ranger package
 set.seed(802)
-ranger_mod <- ranger(formula = SoilMoisture ~ Air_TempC_Max + Air_TempC_Min + Air_TempC_Avg + Solar_Incoming_Total + Ppt_mm_Tot + Relative_Humidity_Max + Relative_Humidity_Min + Wind_speed_Max + WndSpeed_Avg + WinDir_Avg + WinDir_Std_Dev + SoilTemp_5cm_Avg + SoilTemp_20cm_Avg + Dewpoint_Avg + SoilTemp_5cm_Max + SoilTemp_5cm_Min + SoilTemp_20cm_Max + SoilTemp_20cm_Min, data = data_2013_train, num.trees = 10000, mtry = 3, importance = "impurity", quantreg = TRUE)
+ranger_mod <- ranger(formula = SoilMoisture ~ Air_TempC_Max + Air_TempC_Min + Air_TempC_Avg + Solar_Incoming_Total + Ppt_mm_Tot + Relative_Humidity_Max + Relative_Humidity_Min + Wind_speed_Max + WndSpeed_Avg + WinDir_Avg + WinDir_Std_Dev + SoilTemp_5cm_Avg + SoilTemp_20cm_Avg + Dewpoint_Avg + SoilTemp_5cm_Max + SoilTemp_5cm_Min + SoilTemp_20cm_Max + SoilTemp_20cm_Min, data = data_2013_train, num.trees = 10000, mtry = 4, importance = "impurity", quantreg = TRUE)
 set.seed(802)
 ranger_mod_v2 <- ranger(formula = SoilMoisture ~ SoilTemp_20cm_Avg + SoilTemp_20cm_Min + SoilTemp_5cm_Max + SoilTemp_20cm_Max + Air_TempC_Avg + Dewpoint_Avg, data = data_2013_train, num.trees = 10000, mtry = 3, importance = "impurity", quantreg = TRUE)
 set.seed(802)
 ranger_mod_v3 <- ranger(formula = SoilMoisture ~ SoilTemp_20cm_Avg + SoilTemp_20cm_Min + SoilTemp_5cm_Max + SoilTemp_20cm_Max + Air_TempC_Avg, data = data_2013_train, num.trees = 10000, mtry = 3, importance = "impurity", quantreg = TRUE)
 set.seed(802)
 ranger_mod_v4 <- ranger(formula = SoilMoisture ~ SoilTemp_20cm_Avg + SoilTemp_20cm_Min + SoilTemp_5cm_Max + SoilTemp_20cm_Max, data = data_2013_train, num.trees = 10000, mtry = 3, importance = "impurity", quantreg = TRUE)
+ranger_mod_v5 <- ranger(formula = SoilMoisture ~ SoilTemp_20cm_Avg + Ppt_mm_Tot + Solar_Incoming_Total + Air_TempC_Max, data = data_2013_train, num.trees = 10000, mtry = 3, importance = "impurity", quantreg = TRUE)
+ranger_mod_v6 <- ranger(formula = SoilMoisture ~ Ppt_mm_Tot + Solar_Incoming_Total + Air_TempC_Max, data = data_2013_train, num.trees = 10000, mtry = 3, importance = "impurity", quantreg = TRUE)
 ## using random forest package
 # set.seed(802)
 # RF_mod <- randomForest(formula = SoilMoisture ~ Ppt_mm_Tot + Air_TempC_Avg + Air_TempC_Max + Relative_Humidity_Max + SoilTemp_5cm_Max + SoilTemp_20cm_Max + Solar_Incoming_Total + Relative_Humidity_Min, data = data_2013_train, num.trees = 10000, mtry = 2)
@@ -93,14 +103,7 @@ ranger_mod_v4 <- ranger(formula = SoilMoisture ~ SoilTemp_20cm_Avg + SoilTemp_20
 
 ## printing and plotting models
 # print(ranger_mod)
-importance(ranger_mod)
-# importance(ranger_mod_v2)
-# print(RF_mod)
-# print(RF_mod_v2)
-# plot(RF_mod)
-# plot(RF_mod_v2)
-# varImpPlot(RF_mod)
-# varImpPlot(RF_mod_v2)
+sort(importance(ranger_mod))
 
 ## creating predictions
 ## quantiles for ranger predictions
@@ -114,29 +117,38 @@ ranger_pred_v3 <- predict(ranger_mod_v3, data = data_2013_test, type = "quantile
 set.seed(802)
 ranger_pred_v4 <- predict(ranger_mod_v4, data = data_2013_test, type = "quantiles", quantiles = quants)
 set.seed(802)
+ranger_pred_v5 <- predict(ranger_mod_v5, data = data_2013_test, type = "quantiles", quantiles = quants)
+set.seed(802)
+ranger_pred_v6 <- predict(ranger_mod_v6, data = data_2013_test, type = "quantiles", quantiles = quants)
+set.seed(802)
 # RF_pred <- predict(RF_mod, newdata = data_2013_test)
 set.seed(802)
 # RF_pred_v2 <- predict(RF_mod_v2, newdata = data_2013_test)
-rangerpredictions <- predictions(ranger_pred)
-rangerpredictions_v2 <- predictions(ranger_pred_v2)
-rangerpredictions_v3 <- predictions(ranger_pred_v3)
-rangerpredictions_v4 <- predictions(ranger_pred_v4)
+rangerpredictions <- data.frame(predictions(ranger_pred))
+rangerpredictions_v2 <- data.frame(predictions(ranger_pred_v2))
+rangerpredictions_v3 <- data.frame(predictions(ranger_pred_v3))
+rangerpredictions_v4 <- data.frame(predictions(ranger_pred_v4))
+rangerpredictions_v5 <- data.frame(predictions(ranger_pred_v5))
+rangerpredictions_v6 <- data.frame(predictions(ranger_pred_v6))
 plot(1:30, data_2013_test$SoilMoisture, col = 'black', ylim = c(0.1,0.35))
 points(rangerpredictions[,2], col = 'red')
 lines(rangerpredictions[,1], col = 'red')
 lines(rangerpredictions[,3], col = 'red')
-points(rangerpredictions_v2[,2], pch = 2, col = 'darkgreen')
-lines(rangerpredictions_v2[,1], col = 'darkgreen')
-lines(rangerpredictions_v2[,3], col = 'darkgreen')
-points(rangerpredictions_v3[,2], pch = 2, col = 'darkblue')
-lines(rangerpredictions_v3[,1], col = 'darkblue')
-lines(rangerpredictions_v3[,3], col = 'darkblue')
-points(rangerpredictions_v4[,2], pch = 2, col = 'orange')
-lines(rangerpredictions_v4[,1], col = 'orange')
-lines(rangerpredictions_v4[,3], col = 'orange')
-# points(RF_pred, pch = 14, col = 'green')
-# points(RF_pred_v2, col = 'black')
-
+# points(rangerpredictions_v2[,2], pch = 2, col = 'darkgreen')
+# lines(rangerpredictions_v2[,1], col = 'darkgreen')
+# lines(rangerpredictions_v2[,3], col = 'darkgreen')
+# points(rangerpredictions_v3[,2], pch = 2, col = 'darkblue')
+# lines(rangerpredictions_v3[,1], col = 'darkblue')
+# lines(rangerpredictions_v3[,3], col = 'darkblue')
+# points(rangerpredictions_v4[,2], pch = 2, col = 'orange')
+# lines(rangerpredictions_v4[,1], col = 'orange')
+# lines(rangerpredictions_v4[,3], col = 'orange')
+# points(rangerpredictions_v5[,2], pch = 2, col = 'navy')
+# lines(rangerpredictions_v5[,1], col = 'navy')
+# lines(rangerpredictions_v5[,3], col = 'navy')
+# points(rangerpredictions_v6[,2], pch = 2, col = 'green')
+# lines(rangerpredictions_v6[,1], col = 'green')
+# lines(rangerpredictions_v6[,3], col = 'green')
 ```
 ## Stan model 1
 ```{r}
@@ -146,12 +158,312 @@ model1_datalist <- list(N = nrow(data_2013_train) -1, y = data_2013_train$SoilMo
 
 ## fitting stan model
 set.seed(802)
-model1_fit <- stan(file=here("ForecastChallenge", "Challenge1", "FC1Model1.stan"),data = model1_datalist, chains = 4, iter = 10000, warmup = 2000)
-model1_fit
+# model1_fit <- stan(file=here("ForecastChallenge", "Challenge1", "FC1Model1.stan"),data = model1_datalist, chains = 4, iter = 10000, warmup = 2000)
+# model1_fit
 ```
 
+
+## Stan Model 2
 ```{r}
-## launching shinystan
-launch_shinystan(model1_fit)
+## setting datalist
+model2_datalist <- list(N = nrow(data_2013_train) -1, y = data_2013_train$SoilMoisture[-1], x1 = data_2013_train$SoilMoisture[-train_rows], x4 = data_2013_train$Air_TempC_Avg[-train_rows], x5 = data_2013_train$Solar_Incoming_Total[-train_rows], x6 = data_2013_train$Ppt_mm_Tot[-train_rows], x11 = data_2013_train$WinDir_Avg[-train_rows], x13 = data_2013_train$SoilTemp_5cm_Avg[-train_rows], x14 = data_2013_train$SoilTemp_20cm_Avg[-train_rows], x15 = data_2013_train$Dewpoint_Avg[-train_rows], x16 = data_2013_train$SoilTemp_5cm_Max[-train_rows], x18 = data_2013_train$SoilTemp_20cm_Max[-train_rows], x19 = data_2013_train$SoilTemp_20cm_Min[-train_rows])
+
+## fitting stan model
+set.seed(802)
+# model2_fit <- stan(file=here("ForecastChallenge", "Challenge1", "FC1Model2.stan"),data = model2_datalist, chains = 3, iter = 5000, warmup = 2000)
+# model2_fit
+## chains still did not mix
+```
+## Stan Model 3
+```{r}
+## setting datalist
+model3_datalist <- list(N = nrow(data_2013_train) -1, y = data_2013_train$SoilMoisture[-1], x1 = data_2013_train$SoilMoisture[-train_rows], x4 = data_2013_train$Air_TempC_Avg[-train_rows], x5 = data_2013_train$Solar_Incoming_Total[-train_rows], x6 = data_2013_train$Ppt_mm_Tot[-train_rows], x11 = data_2013_train$WinDir_Avg[-train_rows], x14 = data_2013_train$SoilTemp_20cm_Avg[-train_rows], x15 = data_2013_train$Dewpoint_Avg[-train_rows], x19 = data_2013_train$SoilTemp_20cm_Min[-train_rows])
+
+## fitting stan model
+set.seed(802)
+# model3_fit <- stan(file=here("ForecastChallenge", "Challenge1", "FC1Model3.stan"),data = model3_datalist, chains = 3, iter = 10000, warmup = 5000)
+# model3_fit
+```
+## Stan Model 4
+```{r}
+## setting datalist
+model4_datalist <- list(N = nrow(data_2013_train) -1, y = data_2013_train$SoilMoisture[-1], x1 = data_2013_train$SoilMoisture[-train_rows], x4 = data_2013_train$Air_TempC_Avg[-train_rows], x5 = data_2013_train$Solar_Incoming_Total[-train_rows], x6 = data_2013_train$Ppt_mm_Tot[-train_rows], x11 = data_2013_train$WinDir_Avg[-train_rows], x14 = data_2013_train$SoilTemp_20cm_Avg[-train_rows], x19 = data_2013_train$SoilTemp_20cm_Min[-train_rows])
+
+## fitting stan model
+set.seed(802)
+# model4_fit <- stan(file=here("ForecastChallenge", "Challenge1", "FC1Model4.stan"),data = model4_datalist, chains = 3, iter = 10000, warmup = 5000)
+# model4_fit
 ```
 
+
+## Stan Model 5
+```{r}
+## setting datalist
+model5_datalist <- list(N = nrow(data_2013_train) -1, y = data_2013_train$SoilMoisture[-1], x1 = data_2013_train$SoilMoisture[-train_rows], x4 = data_2013_train$Air_TempC_Avg[-train_rows], x5 = data_2013_train$Solar_Incoming_Total[-train_rows], x6 = data_2013_train$Ppt_mm_Tot[-train_rows], x14 = data_2013_train$SoilTemp_20cm_Avg[-train_rows], x19 = data_2013_train$SoilTemp_20cm_Min[-train_rows])
+
+## fitting stan model
+set.seed(802)
+# model5_fit <- stan(file=here("ForecastChallenge", "Challenge1", "FC1Model5.stan"),data = model5_datalist, chains = 3, iter = 10000, warmup = 5000)
+# model5_fit
+# 
+# model5_pars <- rstan::extract(model5_fit, c("b0", "b1", "b4", "b5", "b6", "b14", "b19", "sigma"))
+```
+## Stan Model 6
+```{r}
+## setting datalist
+model6_datalist <- list(N = nrow(data_2013_train) -1, y = data_2013_train$SoilMoisture[-1], x2 = data_2013_train$Air_TempC_Max[-train_rows], x4 = data_2013_train$Air_TempC_Avg[-train_rows], x5 = data_2013_train$Solar_Incoming_Total[-train_rows], x6 = data_2013_train$Ppt_mm_Tot[-train_rows], x14 = data_2013_train$SoilTemp_20cm_Avg[-train_rows], x15 = data_2013_train$Dewpoint_Avg[-train_rows])
+
+## fitting stan model
+set.seed(802)
+model6_fit <- stan(file=here("ForecastChallenge", "Challenge1", "FC1Model6.stan"),data = model6_datalist, chains = 3, iter = 10000, warmup = 5000)
+model6_fit
+
+## Extracting parameters
+model6_pars <- rstan::extract(model6_fit, c("b0", "b2", "b4", "b5", "b6", "b14", "b15", "sigma"))
+
+## making predictions
+## adding in process uncertainty
+Pred_out_sm <- matrix(NA, length(model6_pars$b0), nrow(data_2013_test))
+Pred_out_mean_sm <- matrix(NA, length(model6_pars$b0), nrow(data_2013_test))
+## process error
+for (p in 1:length(model6_pars$b0)){
+  SoilMoisture <- data_2013_test$SoilMoisture[1]
+  for(t in 1:nrow(data_2013_test)){
+     SoilMoisture <- rnorm(1, mean = model6_pars$b0[p] + model6_pars$b2[p] * data_2013_test$Air_TempC_Max[t] + model6_pars$b4[p] * data_2013_test$Air_TempC_Avg[t] + model6_pars$b5[p] * data_2013_test$Solar_Incoming_Total[t] + model6_pars$b6[p] * data_2013_test$Ppt_mm_Tot[t] + model6_pars$b14[p] * data_2013_test$SoilTemp_20cm_Avg[t] + model6_pars$b15[p] * data_2013_test$Dewpoint_Avg[t], sd=model6_pars$sigma[p])
+  Pred_out_sm[p,t] <- SoilMoisture
+  }
+}
+
+
+## generating forecasts
+MeanPred <- apply(Pred_out_sm,2,mean)
+Upper <- apply(Pred_out_sm,2,quantile, prob=.9)
+Lower <- apply(Pred_out_sm,2,quantile, prob=.1)
+## plotting forecasts against data
+plot(MeanPred,type='l', ylim=c(0.05, 0.45), xlim = c(0,30)) 
+lines(Upper,lty=2)
+lines(Lower,lty=2)
+points(data_2013_test$SoilMoisture,col='steelblue')
+
+## RMSE
+# rmse(data_2013_test$SoilMoisture, MeanPred)
+```
+## Stan Model 7
+```{r}
+## setting datalist
+model7_datalist <- list(N = nrow(data_2013_train) -1, y = data_2013_train$SoilMoisture[-1], x2 = data_2013_train$Air_TempC_Max[-train_rows], x5 = data_2013_train$Solar_Incoming_Total[-train_rows], x6 = data_2013_train$Ppt_mm_Tot[-train_rows], x14 = data_2013_train$SoilTemp_20cm_Avg[-train_rows], x15 = data_2013_train$Dewpoint_Avg[-train_rows])
+
+## fitting stan model
+set.seed(802)
+model7_fit <- stan(file=here("ForecastChallenge", "Challenge1", "FC1Model7.stan"),data = model7_datalist, chains = 3, iter = 10000, warmup = 5000)
+model7_fit
+
+## Extracting Parameters
+model7_pars <- rstan::extract(model7_fit, c("b0", "b2", "b5", "b6", "b14", "b15", "sigma"))
+
+## making predictions
+## adding in process uncertainty
+Pred_out_sm <- matrix(NA, length(model7_pars$b0), nrow(data_2013_test))
+Pred_out_mean_sm <- matrix(NA, length(model7_pars$b0), nrow(data_2013_test))
+
+## process error
+set.seed(802)
+for (p in 1:length(model7_pars$b0)){
+  SoilMoisture <- data_2013_test$SoilMoisture[1]
+  for(t in 1:nrow(data_2013_test)){
+     SoilMoisture <- rnorm(1, mean = model7_pars$b0[p] + model7_pars$b2[p] * data_2013_test$Air_TempC_Max[t] + model7_pars$b5[p] * data_2013_test$Solar_Incoming_Total[t] + model7_pars$b6[p] * data_2013_test$Ppt_mm_Tot[t] + model7_pars$b14[p] * data_2013_test$SoilTemp_20cm_Avg[t] + model7_pars$b15[p] * data_2013_test$Dewpoint_Avg[t], sd=model7_pars$sigma[p])
+  Pred_out_sm[p,t] <- SoilMoisture
+  }
+}
+
+
+## generating forecasts
+MeanPred_mod7 <- apply(Pred_out_sm,2,mean)
+Upper_mod7 <- apply(Pred_out_sm,2,quantile, prob=.9)
+Lower_mod7 <- apply(Pred_out_sm,2,quantile, prob=.1)
+
+## plotting forecasts against data
+plot(data_2013_test$Date, MeanPred_mod7, type='l', ylim = c(0.05, 0.45),xlim = c(0,30), main = "Applying Final Model on Test Data from 2013", xlab = "Date", ylab = "Soil Moisture")
+lines(Upper_mod7,lty=2)
+lines(Lower_mod7,lty=2)
+points(data_2013_test$SoilMoisture,col='steelblue')
+
+## RMSE
+rmse(data_2013_test$SoilMoisture, MeanPred_mod7)
+```
+## Stan Model 8
+```{r}
+## setting datalist
+# model8_datalist <- list(N = nrow(data_2013_train) -1, y = data_2013_train$SoilMoisture[-1], x4 = data_2013_train$Air_TempC_Avg[-train_rows], x5 = data_2013_train$Solar_Incoming_Total[-train_rows], x6 = data_2013_train$Ppt_mm_Tot[-train_rows], x14 = data_2013_train$SoilTemp_20cm_Avg[-train_rows], x15 = data_2013_train$Dewpoint_Avg[-train_rows])
+# 
+# ## fitting stan model
+# set.seed(802)
+# model8_fit <- stan(file=here("ForecastChallenge", "Challenge1", "FC1Model8.stan"),data = model8_datalist, chains = 3, iter = 10000, warmup = 5000)
+# model8_fit
+# 
+# model8_pars <- rstan::extract(model8_fit, c("b0", "b4", "b5", "b6", "b14", "b15", "sigma"))
+# 
+# ## making predictions
+# ## adding in process uncertainty
+# Pred_out_sm <- matrix(NA, length(model8_pars$b0), nrow(data_2013_test))
+# Pred_out_mean_sm <- matrix(NA, length(model8_pars$b0), nrow(data_2013_test))
+# ## process error
+# 
+# for (p in 1:length(model8_pars$b0)){
+#   SoilMoisture <- data_2013_test$SoilMoisture[1]
+#   for(t in 1:nrow(data_2013_test)){
+#      SoilMoisture <- rnorm(1, mean = model8_pars$b0[p] + model8_pars$b4[p] * data_2013_test$Air_TempC_Avg[t] + model8_pars$b5[p] * data_2013_test$Solar_Incoming_Total[t] + model8_pars$b6[p] * data_2013_test$Ppt_mm_Tot[t] + model8_pars$b14[p] * data_2013_test$SoilTemp_20cm_Avg[t] + model8_pars$b15[p] * data_2013_test$Dewpoint_Avg[t], sd=model8_pars$sigma[p])
+#   Pred_out_sm[p,t] <- SoilMoisture
+#   }
+# }
+# 
+# 
+# ## generating forecasts
+# MeanPred_mod8 <- apply(Pred_out_sm,2,mean)
+# Upper_mod8 <- apply(Pred_out_sm,2,quantile, prob=.9)
+# Lower_mod8 <- apply(Pred_out_sm,2,quantile, prob=.1)
+# ## plotting forecasts against data
+# plot(MeanPred_mod8,type='l', ylim = c(-0.2,0.55),xlim = c(0,30)) 
+# lines(Upper_mod8,lty=2)
+# lines(Lower_mod8,lty=2)
+# points(data_2013_test$SoilMoisture,col='steelblue')
+# 
+# ## RMSE
+# rmse(data_2013_test$SoilMoisture, MeanPred_mod8)
+```
+## Stan Model 9
+```{r}
+## setting datalist
+# model9_datalist <- list(N = nrow(data_2013_train) -1, y = data_2013_train$SoilMoisture[-1], x2 = data_2013_train$Air_TempC_Max[-train_rows], x5 = data_2013_train$Solar_Incoming_Total[-train_rows], x6 = data_2013_train$Ppt_mm_Tot[-train_rows], x14 = data_2013_train$SoilTemp_20cm_Avg[-train_rows])
+# 
+# ## fitting stan model
+# set.seed(802)
+# model9_fit <- stan(file=here("ForecastChallenge", "Challenge1", "FC1Model9.stan"),data = model9_datalist, chains = 3, iter = 10000, warmup = 5000)
+# model9_fit
+# 
+# model9_pars <- rstan::extract(model9_fit, c("b0", "b2", "b5", "b6", "b14", "sigma"))
+# 
+# ## making predictions
+# ## adding in process uncertainty
+# Pred_out_sm <- matrix(NA, length(model9_pars$b0), nrow(data_2013_test))
+# Pred_out_mean_sm <- matrix(NA, length(model9_pars$b0), nrow(data_2013_test))
+# ## process error
+# 
+# for (p in 1:length(model9_pars$b0)){
+#   SoilMoisture <- data_2013_test$SoilMoisture[1]
+#   for(t in 1:nrow(data_2013_test)){
+#      SoilMoisture <- rnorm(1, mean = model9_pars$b0[p] + model9_pars$b2[p] * data_2013_test$Air_TempC_Max[t] + model9_pars$b5[p] * data_2013_test$Solar_Incoming_Total[t] + model9_pars$b6[p] * data_2013_test$Ppt_mm_Tot[t] + model9_pars$b14[p] * data_2013_test$SoilTemp_20cm_Avg[t], sd=model9_pars$sigma[p])
+#   Pred_out_sm[p,t] <- SoilMoisture
+#   }
+# }
+# 
+# 
+# ## generating forecasts
+# MeanPred_mod9 <- apply(Pred_out_sm,2,mean)
+# Upper_mod9 <- apply(Pred_out_sm,2,quantile, prob=.9)
+# Lower_mod9 <- apply(Pred_out_sm,2,quantile, prob=.1)
+# ## plotting forecasts against data
+# plot(MeanPred_mod9,type='l', ylim = c(-0.2,0.55),xlim = c(0,30)) 
+# lines(Upper_mod9,lty=2)
+# lines(Lower_mod9,lty=2)
+# points(data_2013_test$SoilMoisture,col='steelblue')
+# 
+# ## RMSE
+# rmse(data_2013_test$SoilMoisture, MeanPred_mod9)
+```
+## Stan Model 10
+```{r}
+## setting datalist
+# model10_datalist <- list(N = nrow(data_2013_train) -1, y = data_2013_train$SoilMoisture[-1], x4 = data_2013_train$Air_TempC_Avg[-train_rows], x5 = data_2013_train$Solar_Incoming_Total[-train_rows], x6 = data_2013_train$Ppt_mm_Tot[-train_rows], x14 = data_2013_train$SoilTemp_20cm_Avg[-train_rows])
+# 
+# ## fitting stan model
+# set.seed(802)
+# model10_fit <- stan(file=here("ForecastChallenge", "Challenge1", "FC1Model10.stan"),data = model10_datalist, chains = 3, iter = 10000, warmup = 5000)
+# model10_fit
+# 
+# model10_pars <- rstan::extract(model10_fit, c("b0", "b4", "b5", "b6", "b14", "sigma"))
+# 
+# ## making predictions
+# ## adding in process uncertainty
+# Pred_out_sm <- matrix(NA, length(model10_pars$b0), nrow(data_2013_test))
+# Pred_out_mean_sm <- matrix(NA, length(model10_pars$b0), nrow(data_2013_test))
+# ## process error
+# 
+# for (p in 1:length(model10_pars$b0)){
+#   SoilMoisture <- data_2013_test$SoilMoisture[1]
+#   for(t in 1:nrow(data_2013_test)){
+#      SoilMoisture <- rnorm(1, mean = model10_pars$b0[p] + model10_pars$b4[p] * data_2013_test$Air_TempC_Avg[t] + model10_pars$b5[p] * data_2013_test$Solar_Incoming_Total[t] + model10_pars$b6[p] * data_2013_test$Ppt_mm_Tot[t] + model10_pars$b14[p] * data_2013_test$SoilTemp_20cm_Avg[t], sd=model10_pars$sigma[p])
+#   Pred_out_sm[p,t] <- SoilMoisture
+#   }
+# }
+# 
+# 
+# ## generating forecasts
+# MeanPred_mod10 <- apply(Pred_out_sm,2,mean)
+# Upper_mod10 <- apply(Pred_out_sm,2,quantile, prob=.9)
+# Lower_mod10 <- apply(Pred_out_sm,2,quantile, prob=.1)
+# ## plotting forecasts against data
+# plot(MeanPred_mod10,type='l', xlim = c(0,30)) 
+# lines(Upper_mod10,lty=2)
+# lines(Lower_mod10,lty=2)
+# points(data_2013_test$SoilMoisture,col='steelblue')
+# 
+# ## RMSE
+# rmse(data_2013_test$SoilMoisture, MeanPred_mod10)
+```
+## RMSE
+```{r}
+rmse(data_2013_test$SoilMoisture, MeanPred)
+rmse(data_2013_test$SoilMoisture, MeanPred_mod7)
+rmse(data_2013_test$SoilMoisture, MeanPred_mod8)
+rmse(data_2013_test$SoilMoisture, MeanPred_mod9)
+rmse(data_2013_test$SoilMoisture, MeanPred_mod10)
+print("random forest RMSEs")
+rmse(data_2013_test$SoilMoisture, rangerpredictions[,2])
+rmse(data_2013_test$SoilMoisture, rangerpredictions_v2[,2])
+rmse(data_2013_test$SoilMoisture, rangerpredictions_v3[,2])
+rmse(data_2013_test$SoilMoisture, rangerpredictions_v4[,2])
+rmse(data_2013_test$SoilMoisture, rangerpredictions_v5[,2])
+rmse(data_2013_test$SoilMoisture, rangerpredictions_v6[,2])
+# rmse(data_2013_test$SoilMoisture, )
+# rmse(data_2013_test$SoilMoisture, )
+# rmse(data_2013_test$SoilMoisture, )
+```
+# FORECASTING 2014
+## Model 7 identified as best model
+```{r}
+## filtering weather data to just date range for forecasting
+WeatherData_fcast <- WeatherData |>
+  filter(Date >= "2014-06-14" & Date <= "2014-10-15") |>
+  arrange(Date)
+
+## Making predictions
+## Creating matrices to store predictions
+Pred_out_sm_fcast <- matrix(NA, length(model7_pars$b0), nrow(WeatherData_fcast))
+## process error
+set.seed(802)
+for (p in 1:length(model7_pars$b0)){
+  
+  for(t in 1:nrow(WeatherData_fcast)){
+     SoilMoisture <- rnorm(1, mean = model7_pars$b0[p] + model7_pars$b2[p] * WeatherData_fcast$Air_TempC_Max[t] + model7_pars$b5[p] * WeatherData_fcast$Solar_Incoming_Total[t] + model7_pars$b6[p] * WeatherData_fcast$Ppt_mm_Tot[t] + model7_pars$b14[p] * WeatherData_fcast$SoilTemp_20cm_Avg[t] + model7_pars$b15[p] * WeatherData_fcast$Dewpoint_Avg[t], sd=model7_pars$sigma[p])
+  Pred_out_sm_fcast[p,t] <- SoilMoisture
+  }
+}
+
+## generating forecasts
+MeanPred_mod7_fcast <- apply(Pred_out_sm_fcast,2,mean)
+Upper_mod7_fcast <- apply(Pred_out_sm_fcast,2,quantile, prob=.9)
+Lower_mod7_fcast <- apply(Pred_out_sm_fcast,2,quantile, prob=.1)
+
+## Adding Prediction Columns to Weather Data frame with only forecasted dates included
+ColtonGriffinKaden <- cbind(WeatherData_fcast, MeanPred_mod7_fcast)
+ColtonGriffinKaden <- cbind(ColtonGriffinKaden, Lower_mod7_fcast)
+ColtonGriffinKaden <- cbind(ColtonGriffinKaden, Upper_mod7_fcast)
+
+ColtonGriffinKaden <- ColtonGriffinKaden |>
+  select(Date, MeanPred_mod7_fcast, Lower_mod7_fcast, Upper_mod7_fcast) |>
+  filter(Date > "2014-06-14")
+colnames(ColtonGriffinKaden) <- c("Date", "Forecast", "LowerPI", "UpperPI")
+
+write.csv(ColtonGriffinKaden, here("ForecastChallenge", "Challenge1", "ColtonGriffinKaden.csv"))
+```
