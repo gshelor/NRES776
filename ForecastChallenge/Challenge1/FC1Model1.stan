@@ -1,7 +1,7 @@
 //
 // This Stan program defines a simple model, with a
 // vector of values 'y' modeled as normally distributed
-// with mean 'mu' and standard deviation 'sigma'.
+// with standard deviation 'sigma'.
 //
 
 
@@ -10,7 +10,6 @@
 data {
   int<lower=0> N;
   vector[N] y; // Soil Moisture, response variable
-  vector[N] x1; // Soil moisture
   vector[N] x2; // AirTempC_Max
   vector[N] x3; // AirTempC_Min
   vector[N] x4; // AirTempC_Avg
@@ -36,7 +35,6 @@ data {
 parameters {
   real b0; // intercept
   real<lower=0> sigma;
-  real b1;
   real b2;
   real b3;
   real b4;
@@ -61,6 +59,6 @@ parameters {
 // 'y' to be normally distributed
 // and standard deviation 'sigma'.
 model {
-  y ~ normal(b0 + b1*x1 + b2*x2 + b3*x3 + b4*x4 + b5*x5 + b6*x6 + b7*x7 + b8*x8 + b9*x9 + b10*x10 + b11*x11 + b12*x12 + b13*x13 + b14*x14 + b15*x15 + b16*x16 + b17*x17 + b18*x18 + b19*x19, sigma);
+  y ~ normal(b0 + b2*x2 + b3*x3 + b4*x4 + b5*x5 + b6*x6 + b7*x7 + b8*x8 + b9*x9 + b10*x10 + b11*x11 + b12*x12 + b13*x13 + b14*x14 + b15*x15 + b16*x16 + b17*x17 + b18*x18 + b19*x19, sigma);
 }
 
