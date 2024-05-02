@@ -115,13 +115,15 @@ weather_pivot_pre2011 <- weather_pivot |>
 
 ## creating dataframe for actual forecast
 forage_cast <- weather_pivot |>
-  filter(ForageYear > 2010 & ForageYear <= 2018)
+  filter(ForageYear > 2010 & ForageYear <= 2018) |>
+  mutate(forage_mean = mean(forage$lbs_per_acre))
 
 ## list of dataframes to merge with forage
 covariate_df_list <- list(forage, weather_pivot_pre2011)
 forage_wx <- covariate_df_list |>
   reduce(full_join, by = "ForageYear") |>
-  arrange(ForageYear) #|>
+  arrange(ForageYear) |>
+  mutate(forage_mean = mean(lbs_per_acre))
   #drop_na()
 
 ##### Plots and Correlations of Covariates vs Forage #####
@@ -435,7 +437,7 @@ rmse(forage_test$lbs_per_acre, MeanPred_mod1)
 
 #### Stan Model 5 ####
 ## making list of data to declare what goes into stan model
-model5_datalist <- list(N = nrow(forage_train), y = forage_train$lbs_per_acre, x1 = forage_train$ppt_in_1013_sum, x5 = forage_train$tmin_degf_11, x6 = forage_train$tmin_degf_12, x7 = forage_train$tmin_degf_13)
+model5_datalist <- list(N = nrow(forage_train), y = forage_train$lbs_per_acre, x1 = forage_train$ppt_in_1013_sum, x2 = forage_train$forage_mean, x5 = forage_train$tmin_degf_11, x6 = forage_train$tmin_degf_12, x7 = forage_train$tmin_degf_13)
 
 ## fitting stan model
 set.seed(802)
@@ -445,7 +447,7 @@ model5_fit
 
 
 ## Extracting Parameters
-model5_pars <- rstan::extract(model5_fit, c("b0","b1", "b5", "b6", "b7", "sigma"))
+model5_pars <- rstan::extract(model5_fit, c("b0","b1", "b2", "b5", "b6", "b7", "sigma"))
 
 ## making predictions
 ## adding in process uncertainty
@@ -457,7 +459,7 @@ set.seed(802)
 for (p in 1:length(model5_pars$b0)){
   forage_lbs <- forage_test$lbs_per_acre[1]
   for(t in 1:nrow(forage_test)){
-    forage_lbs <- rnorm(1, mean = model5_pars$b0[p] + model5_pars$b1[p] * forage_test$ppt_in_1013_sum[t] + model5_pars$b5[p] * forage_test$tmin_degf_11[t] + model5_pars$b6[p] * forage_test$tmin_degf_12[t] + model5_pars$b7[p] * forage_test$tmin_degf_13[t], sd=model5_pars$sigma[p])
+    forage_lbs <- rnorm(1, mean = model5_pars$b0[p] + model5_pars$b1[p] * forage_test$ppt_in_1013_sum[t] + model5_pars$b2[p] * forage_test$forage_mean[t] + model5_pars$b5[p] * forage_test$tmin_degf_11[t] + model5_pars$b6[p] * forage_test$tmin_degf_12[t] + model5_pars$b7[p] * forage_test$tmin_degf_13[t], sd=model5_pars$sigma[p])
     Pred_out_forage[p,t] <- forage_lbs
   }
 }
@@ -1292,7 +1294,7 @@ set.seed(802)
 for (p in 1:length(model5_pars$b0)){
   forage_lbs <- forage_cast$lbs_per_acre[1]
   for(t in 1:nrow(forage_cast)){
-    forage_lbs <- rnorm(1, mean = model5_pars$b0[p] + model5_pars$b1[p] * forage_cast$ppt_in_1013_sum[t] + model5_pars$b5[p] * forage_cast$tmin_degf_11[t] + model5_pars$b6[p] * forage_cast$tmin_degf_12[t] + model5_pars$b7[p] * forage_cast$tmin_degf_13[t], sd=model5_pars$sigma[p])
+    forage_lbs <- rnorm(1, mean = model5_pars$b0[p] + model5_pars$b1[p] * forage_cast$ppt_in_1013_sum[t] + model5_pars$b2[p] * forage_cast$forage_mean[t]+ model5_pars$b5[p] * forage_cast$tmin_degf_11[t] + model5_pars$b6[p] * forage_cast$tmin_degf_12[t] + model5_pars$b7[p] * forage_cast$tmin_degf_13[t], sd=model5_pars$sigma[p])
     Pred_out_forage[p,t] <- forage_lbs
   }
 }

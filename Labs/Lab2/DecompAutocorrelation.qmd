@@ -2,7 +2,8 @@
 title: "Lab 2: Time Series, Decomposition, and Autocorrelation"
 author: "Griffin Shelor"
 date: 1-31-2024
-format: pdf
+format: typst
+fig-align: center
 ---
 
 ## Quarto
@@ -20,7 +21,7 @@ prism <- read_csv(here("UNR-EcoForecast-main", "data", "tucson_prism_monthly.csv
 
 # Question 1
 
-```{r Question 1}
+```{r}
 ## converting to time series object
 tminC_ts <- ts(prism$tmin_C, frequency = 12)
 
